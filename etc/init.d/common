@@ -119,11 +119,19 @@ remove_running_config() {
 kernel_modules() {
   KERNEL=$(uname -r)
 
+  # Recent KeeneticOS builds keep kernel modules in /lib/system-modules instead
+  # of /lib/modules. Search whichever of these paths actually exist.
+  MODULE_DIRS=""
+  for dir in "/lib/modules/$KERNEL" "/lib/system-modules/$KERNEL" /lib/system-modules; do
+    [ -d "$dir" ] && MODULE_DIRS="$MODULE_DIRS $dir"
+  done
+  [ -n "$MODULE_DIRS" ] || MODULE_DIRS="/lib/modules/$KERNEL"
+
   # Try to load all modules (OpenWRT or Padavan)
   modprobe -a -q nfnetlink_queue xt_multiport xt_connbytes xt_NFQUEUE xt_CONNMARK xt_connmark &> /dev/null
 
   if [ -z "$(lsmod 2>/dev/null | grep "nfnetlink_queue ")" ]; then
-    nfnetlink_mod_path=$(find "/lib/modules/$KERNEL" -name "nfnetlink_queue.ko*")
+    nfnetlink_mod_path=$(find $MODULE_DIRS -name "nfnetlink_queue.ko*")
 
     if [ -n "$nfnetlink_mod_path" ]; then
       insmod "$nfnetlink_mod_path" &> /dev/null
@@ -132,7 +140,7 @@ kernel_modules() {
   fi
 
   if [ -z "$(lsmod 2>/dev/null | grep "xt_multiport ")" ]; then
-    multiport_mod_path=$(find "/lib/modules/$KERNEL" -name "xt_multiport.ko*")
+    multiport_mod_path=$(find $MODULE_DIRS -name "xt_multiport.ko*")
 
     if [ -n "$multiport_mod_path" ]; then
       insmod "$multiport_mod_path" &> /dev/null
@@ -141,7 +149,7 @@ kernel_modules() {
   fi
 
   if [ -z "$(lsmod 2>/dev/null | grep "xt_connbytes ")" ]; then
-    connbytes_mod_path=$(find "/lib/modules/$KERNEL" -name "xt_connbytes.ko*")
+    connbytes_mod_path=$(find $MODULE_DIRS -name "xt_connbytes.ko*")
 
     if [ -n "$connbytes_mod_path" ]; then
       insmod "$connbytes_mod_path" &> /dev/null
@@ -150,7 +158,7 @@ kernel_modules() {
   fi
 
   if [ -z "$(lsmod 2>/dev/null | grep "xt_NFQUEUE ")" ]; then
-    nfqueue_mod_path=$(find "/lib/modules/$KERNEL" -name "xt_NFQUEUE.ko*")
+    nfqueue_mod_path=$(find $MODULE_DIRS -name "xt_NFQUEUE.ko*")
 
     if [ -n "$nfqueue_mod_path" ]; then
       insmod "$nfqueue_mod_path" &> /dev/null
@@ -161,7 +169,7 @@ kernel_modules() {
   fi
 
   if [ -z "$(lsmod 2>/dev/null | grep "xt_CONNMARK ")" ] && [ -z "$(lsmod 2>/dev/null | grep "xt_connmark ")" ]; then
-    connmark_mod_path=$(find "/lib/modules/$KERNEL" -name "xt_CONNMARK.ko*" -o -name "xt_connmark.ko*" | head -n 1)
+    connmark_mod_path=$(find $MODULE_DIRS -name "xt_CONNMARK.ko*" -o -name "xt_connmark.ko*" | head -n 1)
 
     if [ -n "$connmark_mod_path" ]; then
       insmod "$connmark_mod_path" &> /dev/null
@@ -170,7 +178,7 @@ kernel_modules() {
   fi
 
   if [ -z "$(lsmod 2>/dev/null | grep "nf_conntrack ")" ]; then
-    conntrack_mod_path=$(find "/lib/modules/$KERNEL" -name "nf_conntrack.ko*" | head -n 1)
+    conntrack_mod_path=$(find $MODULE_DIRS -name "nf_conntrack.ko*" | head -n 1)
 
     if [ -n "$conntrack_mod_path" ]; then
       insmod "$conntrack_mod_path" &> /dev/null
